@@ -1,0 +1,1762 @@
+<!DOCTYPE html>
+<!-- saved from url=(0055)file:///Users/pro/Downloads/opentimestamps-stamper.html -->
+<html lang="fr"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>OpenTimestamps - Horodatage de fichiers</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 10px 20px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e5e7eb;
+        }
+
+        h1 {
+            color: #1f2937;
+            margin-bottom: 10px;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .upload-area {
+            border: 2px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+            background: #f9fafb;
+            touch-action: manipulation;
+            min-height: 120px;
+        }
+
+        .upload-area:hover {
+            background: #f1f5f9;
+            border-color: #3b82f6;
+        }
+
+        .upload-area.dragover {
+            background: #eff6ff;
+            border-color: #3b82f6;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .upload-text {
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.2s;
+            width: 100%;
+            margin-top: 10px;
+            min-height: 44px;
+            touch-action: manipulation;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: #2563eb;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn:active:not(:disabled) {
+            transform: translateY(0);
+            box-shadow: 0 2px 6px rgba(59, 130, 246, 0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .info-box {
+            background: #f9fafb;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+            border: 1px solid #e5e7eb;
+        }
+
+        .info-box.show {
+            display: block;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .info-value {
+            color: #666;
+            word-break: break-all;
+            text-align: right;
+            max-width: 60%;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .status {
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-top: 15px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #e5e7eb;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .file-info {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .file-info.show {
+            display: block;
+        }
+
+        .file-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .file-size {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e5e7eb;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+
+        .tabs::-webkit-scrollbar {
+            display: none;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            color: #6b7280;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s ease;
+            touch-action: manipulation;
+            min-height: 44px;
+        }
+
+        .tab:hover {
+            color: #3b82f6;
+            background: #f9fafb;
+        }
+
+        .tab.active {
+            color: #3b82f6;
+            border-bottom-color: #3b82f6;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .verification-result {
+            background: #f9fafb;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+            border: 1px solid #e5e7eb;
+        }
+
+        .verification-result.show {
+            display: block;
+        }
+
+        .verification-item {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .verification-label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .verification-value {
+            color: #666;
+            font-family: monospace;
+            font-size: 13px;
+        }
+
+        .upload-small {
+            border: 2px dashed #cbd5e1;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+            background: #f9fafb;
+            touch-action: manipulation;
+            min-height: 80px;
+        }
+
+        .upload-small:hover {
+            background: #f1f5f9;
+            border-color: #3b82f6;
+        }
+
+        .upload-small .upload-icon {
+            font-size: 32px;
+            margin-bottom: 5px;
+        }
+
+        .upload-small .upload-text {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .input-mode-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            background: #f1f5f9;
+            padding: 4px;
+            border-radius: 10px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: #6b7280;
+            transition: all 0.2s ease;
+            touch-action: manipulation;
+            min-height: 44px;
+        }
+
+        .mode-btn:hover {
+            color: #3b82f6;
+        }
+
+        .mode-btn.active {
+            background: white;
+            color: #3b82f6;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .text-input-area {
+            display: none;
+            margin-bottom: 20px;
+        }
+
+        .text-input-area.show {
+            display: block;
+        }
+
+        .text-input-label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .text-input {
+            width: 100%;
+            min-height: 150px;
+            padding: 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-size: 14px;
+            resize: vertical;
+            transition: border-color 0.2s ease;
+            background: #ffffff;
+        }
+
+        .text-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .char-counter {
+            text-align: right;
+            color: #999;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        /* Styles pour la bibliothèque */
+        .library-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .library-item {
+            background: #f9fafb;
+            border-radius: 10px;
+            padding: 20px;
+            border-left: 4px solid #3b82f6;
+            position: relative;
+            border: 1px solid #e5e7eb;
+        }
+
+        .library-item.outdated {
+            border-left-color: #f59e0b;
+            background: #fef3c7;
+            border-color: #fde68a;
+        }
+
+        .library-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+
+        .library-item-title {
+            font-weight: 600;
+            color: #333;
+            font-size: 16px;
+            word-break: break-word;
+            flex: 1;
+        }
+
+        .library-item-date {
+            color: #999;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .library-item-hash {
+            font-family: monospace;
+            font-size: 12px;
+            color: #666;
+            background: white;
+            padding: 8px;
+            border-radius: 5px;
+            margin: 10px 0;
+            word-break: break-all;
+        }
+
+        .library-item-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .library-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+            flex: 1;
+            min-width: 120px;
+            min-height: 44px;
+            touch-action: manipulation;
+        }
+
+        .library-btn.download {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .library-btn.download:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+
+        .library-btn.download:active {
+            transform: translateY(0);
+        }
+
+        .library-btn.update {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .library-btn.update:hover {
+            background: #d97706;
+            transform: translateY(-1px);
+        }
+
+        .library-btn.update:active {
+            transform: translateY(0);
+        }
+
+        .library-btn.verify {
+            background: #10b981;
+            color: white;
+        }
+
+        .library-btn.verify:hover {
+            background: #059669;
+            transform: translateY(-1px);
+        }
+
+        .library-btn.verify:active {
+            transform: translateY(0);
+        }
+
+        .library-btn.delete {
+            background: #ef4444;
+            color: white;
+        }
+
+        .library-btn.delete:hover {
+            background: #dc2626;
+            transform: translateY(-1px);
+        }
+
+        .library-btn.delete:active {
+            transform: translateY(0);
+        }
+
+        .library-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .library-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .library-status.updated {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .library-status.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .library-status.checking {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        /* Responsive Mobile */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+                align-items: flex-start;
+                padding-top: 20px;
+            }
+
+            .container {
+                padding: 24px 20px;
+                border-radius: 12px;
+                margin: 0 auto;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .subtitle {
+                font-size: 13px;
+            }
+
+            .tabs {
+                gap: 0;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .tab {
+                padding: 10px 16px;
+                font-size: 14px;
+                white-space: nowrap;
+                flex-shrink: 0;
+            }
+
+            .upload-area {
+                padding: 30px 20px;
+            }
+
+            .upload-icon {
+                font-size: 40px;
+            }
+
+            .upload-text {
+                font-size: 14px;
+            }
+
+            .btn {
+                padding: 12px 20px;
+                font-size: 15px;
+            }
+
+            .input-mode-selector {
+                flex-direction: column;
+                gap: 8px;
+                padding: 8px;
+            }
+
+            .mode-btn {
+                padding: 12px 20px;
+            }
+
+            .info-box {
+                padding: 15px;
+            }
+
+            .info-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .info-value {
+                max-width: 100%;
+                text-align: left;
+                font-size: 11px;
+            }
+
+            .text-input {
+                min-height: 120px;
+                padding: 12px;
+                font-size: 14px;
+            }
+
+            /* Bibliothèque mobile */
+            .library-header > div {
+                flex-direction: column !important;
+            }
+
+            .library-header .btn {
+                width: 100%;
+            }
+
+            .library-item {
+                padding: 15px;
+            }
+
+            .library-item-title {
+                font-size: 15px;
+            }
+
+            .library-item-date {
+                font-size: 11px;
+            }
+
+            .library-item-hash {
+                font-size: 10px;
+                padding: 10px 8px;
+            }
+
+            .library-item-actions {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .library-btn {
+                width: 100%;
+                min-width: auto;
+                font-size: 14px;
+            }
+
+            .library-status {
+                display: block;
+                margin-left: 0;
+                margin-top: 8px;
+                text-align: center;
+            }
+
+            .library-item-header {
+                flex-direction: column;
+            }
+
+            /* Vérification mobile */
+            .verification-item {
+                padding: 12px;
+            }
+
+            .verification-label {
+                font-size: 13px;
+            }
+
+            .verification-value {
+                font-size: 12px;
+            }
+
+            .upload-small {
+                padding: 15px;
+            }
+
+            .upload-small .upload-icon {
+                font-size: 28px;
+            }
+
+            .upload-small .upload-text {
+                font-size: 13px;
+            }
+
+            .file-info {
+                padding: 12px;
+            }
+
+            .file-name {
+                font-size: 14px;
+            }
+
+            .file-size {
+                font-size: 13px;
+            }
+
+            .status {
+                padding: 8px 15px;
+                font-size: 14px;
+            }
+        }
+
+        /* Très petits écrans */
+        @media (max-width: 375px) {
+            .container {
+                padding: 20px 15px;
+            }
+
+            h1 {
+                font-size: 22px;
+            }
+
+            .tab {
+                padding: 10px 12px;
+                font-size: 13px;
+            }
+
+            .library-item-hash {
+                font-size: 9px;
+            }
+
+            .btn {
+                font-size: 14px;
+                padding: 10px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 OpenTimestamps</h1>
+        <p class="subtitle">Horodatez vos fichiers sur la blockchain Bitcoin</p>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab(&#39;stamp&#39;)">Créer un horodatage</button>
+            <button class="tab" onclick="switchTab(&#39;verify&#39;)">Vérifier un horodatage</button>
+            <button class="tab" onclick="switchTab(&#39;library&#39;)">📚 Ma bibliothèque</button>
+        </div>
+
+        <!-- Section Création d'horodatage -->
+        <div id="stampContent" class="tab-content active">
+            <div class="input-mode-selector">
+                <button class="mode-btn active" onclick="switchInputMode(&#39;file&#39;)">📁 Fichier</button>
+                <button class="mode-btn" onclick="switchInputMode(&#39;text&#39;)">✍️ Texte</button>
+            </div>
+
+            <div id="fileInputArea" class="file-input-area">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📁</div>
+                    <div class="upload-text">Cliquez ici ou glissez-déposez un fichier</div>
+                    <div style="color: #999; font-size: 12px; margin-top: 5px;">Tout type de fichier accepté</div>
+                </div>
+
+                <input type="file" id="fileInput" accept="*/*">
+            </div>
+
+            <div id="textInputArea" class="text-input-area">
+                <label class="text-input-label">Entrez votre texte à horodater:</label>
+                <textarea id="textInput" class="text-input" placeholder="Tapez votre texte ici..."></textarea>
+                <div class="char-counter" id="charCounter">0 caractères</div>
+            </div>
+
+            <div class="file-info" id="fileInfo">
+                <div class="file-name" id="fileName"></div>
+                <div class="file-size" id="fileSize"></div>
+            </div>
+
+            <button class="btn" id="stampBtn" disabled="">Créer l'horodatage</button>
+
+            <div class="info-box" id="infoBox">
+                <div class="info-row">
+                    <span class="info-label">Hash SHA-256:</span>
+                    <span class="info-value" id="hashValue"></span>
+                </div>
+            </div>
+
+            <div id="statusMessage"></div>
+        </div>
+
+        <!-- Section Vérification d'horodatage -->
+        <div id="verifyContent" class="tab-content">
+            <div class="upload-small" id="uploadOtsArea">
+                <div class="upload-icon">📜</div>
+                <div class="upload-text">Cliquez pour sélectionner le fichier .ots</div>
+            </div>
+            <input type="file" id="otsFileInput" accept=".ots" style="display: none;">
+
+            <div class="file-info" id="otsFileInfo">
+                <div class="file-name" id="otsFileName"></div>
+                <div class="file-size" id="otsFileSize"></div>
+            </div>
+
+            <div class="upload-small" id="uploadOriginalArea">
+                <div class="upload-icon">📄</div>
+                <div class="upload-text">Cliquez pour sélectionner le fichier original</div>
+            </div>
+            <input type="file" id="originalFileInput" accept="*/*" style="display: none;">
+
+            <div class="file-info" id="originalFileInfo">
+                <div class="file-name" id="originalFileName"></div>
+                <div class="file-size" id="originalFileSize"></div>
+            </div>
+
+            <button class="btn" id="verifyBtn" disabled="">Vérifier l'horodatage</button>
+
+            <div class="verification-result" id="verificationResult"></div>
+
+            <div id="verifyStatusMessage"></div>
+        </div>
+
+        <!-- Section Bibliothèque -->
+        <div id="libraryContent" class="tab-content">
+            <div class="library-header">
+                <h2 style="font-size: 20px; color: #333; margin-bottom: 15px;">📚 Mes fichiers horodatés</h2>
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <button class="btn" onclick="refreshLibrary()" style="flex: 1;">🔄 Actualiser</button>
+                    <button class="btn" onclick="exportLibrary()" style="flex: 1; background: #10b981;">💾 Sauvegarder</button>
+                    <button class="btn" onclick="importLibrary()" style="flex: 1; background: #f59e0b;">📂 Restaurer</button>
+                </div>
+                <input type="file" id="importFileInput" accept=".json" style="display: none;">
+            </div>
+
+            <div id="libraryList" class="library-list">
+                <!-- Les entrées seront ajoutées ici dynamiquement -->
+            </div>
+
+            <div id="emptyLibrary" class="status info" style="text-align: center; margin-top: 20px;">
+                Aucun fichier horodaté dans votre bibliothèque. Créez votre premier horodatage !
+            </div>
+        </div>
+    </div>
+
+    <script src="opentimestamps.min.js"></script>
+    <script>
+        // Fonction pour basculer entre les onglets
+        function switchTab(tab) {
+            const tabs = document.querySelectorAll('.tab');
+            const contents = document.querySelectorAll('.tab-content');
+
+            tabs.forEach(t => t.classList.remove('active'));
+            contents.forEach(c => c.classList.remove('active'));
+
+            if (tab === 'stamp') {
+                tabs[0].classList.add('active');
+                document.getElementById('stampContent').classList.add('active');
+            } else if (tab === 'verify') {
+                tabs[1].classList.add('active');
+                document.getElementById('verifyContent').classList.add('active');
+            } else if (tab === 'library') {
+                tabs[2].classList.add('active');
+                document.getElementById('libraryContent').classList.add('active');
+                loadLibrary();
+            }
+        }
+
+        // ============ GESTION DE LA BIBLIOTHÈQUE LOCALE ============
+
+        const OTS_STORAGE_KEY = 'opentimestamps_library';
+
+        // Récupérer la bibliothèque depuis localStorage
+        function getLibrary() {
+            try {
+                const data = localStorage.getItem(OTS_STORAGE_KEY);
+                return data ? JSON.parse(data) : [];
+            } catch (error) {
+                console.error('Erreur lors de la lecture de la bibliothèque:', error);
+                return [];
+            }
+        }
+
+        // Sauvegarder la bibliothèque dans localStorage
+        function saveLibrary(library) {
+            try {
+                localStorage.setItem(OTS_STORAGE_KEY, JSON.stringify(library));
+            } catch (error) {
+                console.error('Erreur lors de la sauvegarde de la bibliothèque:', error);
+            }
+        }
+
+        // Ajouter un fichier à la bibliothèque
+        function addToLibrary(fileName, hash, otsBytes, isTextFile = false) {
+            const library = getLibrary();
+
+            // Convertir otsBytes en Array pour pouvoir le stocker en JSON
+            const otsArray = Array.from(otsBytes);
+
+            const entry = {
+                id: Date.now() + Math.random(), // ID unique
+                fileName: fileName,
+                hash: hash,
+                otsData: otsArray,
+                createdAt: new Date().toISOString(),
+                isTextFile: isTextFile,
+                isUpToDate: false // Par défaut, considéré comme non mis à jour
+            };
+
+            library.push(entry);
+            saveLibrary(library);
+
+            return entry;
+        }
+
+        // Supprimer un fichier de la bibliothèque
+        function removeFromLibrary(id) {
+            let library = getLibrary();
+            library = library.filter(entry => entry.id !== id);
+            saveLibrary(library);
+        }
+
+        // Mettre à jour le statut d'un fichier
+        function updateLibraryEntryStatus(id, isUpToDate, updatedOtsData = null) {
+            const library = getLibrary();
+            const entry = library.find(e => e.id === id);
+
+            if (entry) {
+                entry.isUpToDate = isUpToDate;
+                if (updatedOtsData) {
+                    entry.otsData = Array.from(updatedOtsData);
+                    entry.lastUpdated = new Date().toISOString();
+                }
+                saveLibrary(library);
+            }
+        }
+
+        // Charger et afficher la bibliothèque
+        function loadLibrary() {
+            const library = getLibrary();
+            const libraryList = document.getElementById('libraryList');
+            const emptyLibrary = document.getElementById('emptyLibrary');
+
+            if (library.length === 0) {
+                libraryList.innerHTML = '';
+                emptyLibrary.style.display = 'block';
+                return;
+            }
+
+            emptyLibrary.style.display = 'none';
+
+            // Trier par date de création (plus récent en premier)
+            library.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+            libraryList.innerHTML = library.map(entry => {
+                const createdDate = new Date(entry.createdAt).toLocaleDateString('fr-FR', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                const statusBadge = entry.isUpToDate
+                    ? '<span class="library-status updated">✅ À jour</span>'
+                    : '<span class="library-status pending">⏳ En attente</span>';
+
+                const updateBtn = !entry.isUpToDate
+                    ? `<button class="library-btn update" onclick="checkAndUpdateOts('${entry.id}')">🔄 Vérifier & MAJ</button>`
+                    : '';
+
+                return `
+                    <div class="library-item ${entry.isUpToDate ? '' : 'outdated'}" id="library-item-${entry.id}">
+                        <div class="library-item-header">
+                            <div>
+                                <div class="library-item-title">
+                                    📄 ${entry.fileName}
+                                    ${statusBadge}
+                                </div>
+                                <div class="library-item-date">Créé le ${createdDate}</div>
+                            </div>
+                        </div>
+                        <div class="library-item-hash">
+                            <strong>Hash SHA-256:</strong><br>
+                            ${entry.hash}
+                        </div>
+                        <div class="library-item-actions">
+                            <button class="library-btn download" onclick="downloadOtsFromLibrary('${entry.id}')">
+                                📥 Télécharger .ots
+                            </button>
+                            ${updateBtn}
+                            <button class="library-btn delete" onclick="deleteFromLibrary('${entry.id}')">
+                                🗑️ Supprimer
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Actualiser la bibliothèque
+        function refreshLibrary() {
+            loadLibrary();
+        }
+
+        // Exporter la bibliothèque vers un fichier JSON
+        function exportLibrary() {
+            const library = getLibrary();
+
+            if (library.length === 0) {
+                alert('La bibliothèque est vide, rien à sauvegarder.');
+                return;
+            }
+
+            try {
+                // Créer un objet avec métadonnées
+                const exportData = {
+                    version: '1.0',
+                    exportDate: new Date().toISOString(),
+                    itemCount: library.length,
+                    library: library
+                };
+
+                // Convertir en JSON
+                const jsonString = JSON.stringify(exportData, null, 2);
+                const blob = new Blob([jsonString], { type: 'application/json' });
+
+                // Générer un nom de fichier avec la date
+                const date = new Date();
+                const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+                const timeStr = date.toTimeString().slice(0, 5).replace(':', '');
+                const filename = `opentimestamps_library_${dateStr}_${timeStr}.json`;
+
+                // Télécharger le fichier
+                downloadFile(blob, filename);
+
+                alert(`✅ Bibliothèque sauvegardée avec succès!\n${library.length} fichier(s) exporté(s).`);
+            } catch (error) {
+                console.error('Erreur lors de l\'export:', error);
+                alert('❌ Erreur lors de la sauvegarde: ' + error.message);
+            }
+        }
+
+        // Importer une bibliothèque depuis un fichier JSON
+        function importLibrary() {
+            const importInput = document.getElementById('importFileInput');
+            importInput.click();
+        }
+
+        // Gérer la sélection du fichier d'import
+        document.getElementById('importFileInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            try {
+                const text = await file.text();
+                const importData = JSON.parse(text);
+
+                // Vérifier la structure des données
+                if (!importData.library || !Array.isArray(importData.library)) {
+                    throw new Error('Format de fichier invalide');
+                }
+
+                const currentLibrary = getLibrary();
+                const importedLibrary = importData.library;
+
+                // Demander confirmation si la bibliothèque actuelle n'est pas vide
+                if (currentLibrary.length > 0) {
+                    const confirmMsg = `Voulez-vous fusionner les données ?\n\n` +
+                        `Bibliothèque actuelle: ${currentLibrary.length} fichier(s)\n` +
+                        `Fichier à importer: ${importedLibrary.length} fichier(s)\n\n` +
+                        `OUI = Fusionner (ajouter aux fichiers existants)\n` +
+                        `NON = Remplacer (supprimer les fichiers existants)`;
+
+                    const shouldMerge = confirm(confirmMsg);
+
+                    if (shouldMerge) {
+                        // Fusionner : éviter les doublons basés sur le hash
+                        const existingHashes = new Set(currentLibrary.map(item => item.hash));
+                        const newItems = importedLibrary.filter(item => !existingHashes.has(item.hash));
+
+                        const mergedLibrary = [...currentLibrary, ...newItems];
+                        saveLibrary(mergedLibrary);
+
+                        alert(`✅ Bibliothèque importée avec succès!\n` +
+                              `${newItems.length} nouveau(x) fichier(s) ajouté(s).\n` +
+                              `${importedLibrary.length - newItems.length} doublon(s) ignoré(s).`);
+                    } else {
+                        // Remplacer
+                        saveLibrary(importedLibrary);
+                        alert(`✅ Bibliothèque restaurée avec succès!\n${importedLibrary.length} fichier(s) importé(s).`);
+                    }
+                } else {
+                    // Bibliothèque vide, importer directement
+                    saveLibrary(importedLibrary);
+                    alert(`✅ Bibliothèque restaurée avec succès!\n${importedLibrary.length} fichier(s) importé(s).`);
+                }
+
+                // Recharger l'affichage
+                loadLibrary();
+
+            } catch (error) {
+                console.error('Erreur lors de l\'import:', error);
+                alert('❌ Erreur lors de la restauration: ' + error.message);
+            }
+
+            // Réinitialiser l'input pour permettre de réimporter le même fichier
+            e.target.value = '';
+        });
+
+        // Télécharger un fichier OTS depuis la bibliothèque
+        function downloadOtsFromLibrary(id) {
+            const library = getLibrary();
+            const entry = library.find(e => e.id == id);
+
+            if (!entry) {
+                alert('Fichier non trouvé dans la bibliothèque');
+                return;
+            }
+
+            // Convertir l'array en Uint8Array
+            const otsBytes = new Uint8Array(entry.otsData);
+            const otsBlob = new Blob([otsBytes], { type: 'application/octet-stream' });
+
+            downloadFile(otsBlob, entry.fileName + '.ots');
+        }
+
+        // Vérifier et mettre à jour un fichier OTS
+        async function checkAndUpdateOts(id) {
+            const library = getLibrary();
+            const entry = library.find(e => e.id == id);
+
+            if (!entry) {
+                alert('Fichier non trouvé dans la bibliothèque');
+                return;
+            }
+
+            const itemElement = document.getElementById(`library-item-${entry.id}`);
+            const updateBtn = itemElement.querySelector('.library-btn.update');
+
+            if (updateBtn) {
+                updateBtn.disabled = true;
+                updateBtn.innerHTML = '<span class="loading"></span> Vérification...';
+            }
+
+            try {
+                // Convertir l'array en Uint8Array
+                const otsBytes = new Uint8Array(entry.otsData);
+
+                // Désérialiser le fichier OTS
+                const detached = OpenTimestamps.DetachedTimestampFile.deserialize(otsBytes);
+
+                // Essayer d'upgrader
+                const changed = await OpenTimestamps.upgrade(detached);
+
+                if (changed) {
+                    // Sérialiser le fichier mis à jour
+                    const updatedOtsBytes = detached.serializeToBytes();
+
+                    // Mettre à jour dans la bibliothèque
+                    updateLibraryEntryStatus(entry.id, true, updatedOtsBytes);
+
+                    // Recharger l'affichage
+                    loadLibrary();
+
+                    alert('✅ Le fichier OTS a été mis à jour avec succès! Vous pouvez maintenant le télécharger.');
+                } else {
+                    // Pas de changement, mais vérifier si déjà vérifié
+                    const hashBytes = new Uint8Array(entry.hash.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+                    const detachedHash = OpenTimestamps.DetachedTimestampFile.fromHash(
+                        new OpenTimestamps.Ops.OpSHA256(),
+                        hashBytes
+                    );
+
+                    try {
+                        const verifyResult = await OpenTimestamps.verify(detached, detachedHash);
+                        if (verifyResult && Object.keys(verifyResult).length > 0) {
+                            // C'est vérifié, marquer comme à jour
+                            updateLibraryEntryStatus(entry.id, true);
+                            loadLibrary();
+                            alert('✅ Le fichier OTS est déjà confirmé sur la blockchain!');
+                        } else {
+                            if (updateBtn) {
+                                updateBtn.disabled = false;
+                                updateBtn.innerHTML = '🔄 Vérifier & MAJ';
+                            }
+                            alert('⏳ Aucune mise à jour disponible pour le moment. L\'inscription sur la blockchain peut prendre quelques heures.');
+                        }
+                    } catch (verifyError) {
+                        if (updateBtn) {
+                            updateBtn.disabled = false;
+                            updateBtn.innerHTML = '🔄 Vérifier & MAJ';
+                        }
+                        alert('⏳ Aucune mise à jour disponible pour le moment. L\'inscription sur la blockchain peut prendre quelques heures.');
+                    }
+                }
+            } catch (error) {
+                console.error('Erreur lors de la mise à jour:', error);
+                if (updateBtn) {
+                    updateBtn.disabled = false;
+                    updateBtn.innerHTML = '🔄 Vérifier & MAJ';
+                }
+                alert('❌ Erreur lors de la mise à jour: ' + error.message);
+            }
+        }
+
+        // Supprimer un fichier de la bibliothèque
+        function deleteFromLibrary(id) {
+            if (confirm('Êtes-vous sûr de vouloir supprimer ce fichier de la bibliothèque ?')) {
+                removeFromLibrary(id);
+                loadLibrary();
+            }
+        }
+
+        // Fonction pour basculer entre fichier et texte
+        function switchInputMode(mode) {
+            const modeBtns = document.querySelectorAll('.mode-btn');
+            const fileInputArea = document.getElementById('fileInputArea');
+            const textInputArea = document.getElementById('textInputArea');
+
+            modeBtns.forEach(btn => btn.classList.remove('active'));
+
+            if (mode === 'file') {
+                modeBtns[0].classList.add('active');
+                fileInputArea.style.display = 'block';
+                textInputArea.classList.remove('show');
+                // Réinitialiser le mode texte
+                currentInputMode = 'file';
+                resetStampForm();
+            } else {
+                modeBtns[1].classList.add('active');
+                fileInputArea.style.display = 'none';
+                textInputArea.classList.add('show');
+                currentInputMode = 'text';
+                resetStampForm();
+            }
+        }
+
+        // Variables pour la section Création
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const textInput = document.getElementById('textInput');
+        const charCounter = document.getElementById('charCounter');
+        const stampBtn = document.getElementById('stampBtn');
+        const infoBox = document.getElementById('infoBox');
+        const hashValue = document.getElementById('hashValue');
+        const statusMessage = document.getElementById('statusMessage');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+
+        let selectedFile = null;
+        let fileHash = null;
+        let currentInputMode = 'file';
+        let textContent = null;
+
+        // Variables pour la section Vérification
+        const uploadOtsArea = document.getElementById('uploadOtsArea');
+        const otsFileInput = document.getElementById('otsFileInput');
+        const otsFileInfo = document.getElementById('otsFileInfo');
+        const otsFileName = document.getElementById('otsFileName');
+        const otsFileSize = document.getElementById('otsFileSize');
+
+        const uploadOriginalArea = document.getElementById('uploadOriginalArea');
+        const originalFileInput = document.getElementById('originalFileInput');
+        const originalFileInfo = document.getElementById('originalFileInfo');
+        const originalFileName = document.getElementById('originalFileName');
+        const originalFileSize = document.getElementById('originalFileSize');
+
+        const verifyBtn = document.getElementById('verifyBtn');
+        const verificationResult = document.getElementById('verificationResult');
+        const verifyStatusMessage = document.getElementById('verifyStatusMessage');
+
+        let otsFile = null;
+        let originalFile = null;
+
+        // Fonction pour réinitialiser le formulaire de création
+        function resetStampForm() {
+            selectedFile = null;
+            fileHash = null;
+            textContent = null;
+            infoBox.classList.remove('show');
+            fileInfo.classList.remove('show');
+            stampBtn.disabled = true;
+            statusMessage.innerHTML = '';
+            hashValue.textContent = '';
+            if (currentInputMode === 'text') {
+                textInput.value = '';
+                charCounter.textContent = '0 caractères';
+            }
+        }
+
+        // Compteur de caractères pour le textarea
+        textInput.addEventListener('input', () => {
+            const length = textInput.value.length;
+            charCounter.textContent = `${length} caractère${length > 1 ? 's' : ''}`;
+
+            if (length > 0) {
+                handleText(textInput.value);
+            } else {
+                resetStampForm();
+            }
+        });
+
+        // Gestion du texte saisi
+        async function handleText(text) {
+            textContent = text;
+
+            // Afficher le message de calcul du hash
+            showStatus('Calcul du hash SHA-256...', 'info');
+
+            try {
+                // Calculer le hash du texte
+                const encoder = new TextEncoder();
+                const data = encoder.encode(text);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+                fileHash = hashHex;
+
+                // Afficher le hash
+                hashValue.textContent = fileHash;
+                infoBox.classList.add('show');
+
+                // Activer le bouton d'horodatage
+                stampBtn.disabled = false;
+
+                showStatus('Hash calculé avec succès!', 'success');
+            } catch (error) {
+                console.error('Erreur lors du calcul du hash:', error);
+                showStatus('Erreur lors du calcul du hash: ' + error.message, 'error');
+            }
+        }
+
+        // Gestion du click sur la zone d'upload
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // Gestion du drag & drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        // Gestion de la sélection de fichier
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        // Fonction pour calculer le hash SHA-256
+        async function calculateSHA256(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const arrayBuffer = e.target.result;
+                        const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+                        const hashArray = Array.from(new Uint8Array(hashBuffer));
+                        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                        resolve(hashHex);
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                reader.onerror = () => reject(reader.error);
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        // Gestion du fichier sélectionné
+        async function handleFile(file) {
+            selectedFile = file;
+
+            // Afficher les infos du fichier
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            fileInfo.classList.add('show');
+
+            // Afficher le message de calcul du hash
+            showStatus('Calcul du hash SHA-256...', 'info');
+
+            try {
+                // Calculer le hash
+                fileHash = await calculateSHA256(file);
+
+                // Afficher le hash
+                hashValue.textContent = fileHash;
+                infoBox.classList.add('show');
+
+                // Activer le bouton d'horodatage
+                stampBtn.disabled = false;
+
+                showStatus('Hash calculé avec succès!', 'success');
+            } catch (error) {
+                console.error('Erreur lors du calcul du hash:', error);
+                showStatus('Erreur lors du calcul du hash: ' + error.message, 'error');
+            }
+        }
+
+        // Fonction pour formater la taille du fichier
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        // Fonction pour afficher les messages de statut
+        function showStatus(message, type) {
+            statusMessage.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        // Fonction pour créer l'horodatage
+        stampBtn.addEventListener('click', async () => {
+            if (!fileHash) return;
+            if (currentInputMode === 'file' && !selectedFile) return;
+            if (currentInputMode === 'text' && !textContent) return;
+
+            stampBtn.disabled = true;
+            showStatus('<span class="loading"></span> Création de l\'horodatage en cours...', 'info');
+
+            try {
+                // Convertir le hash hexadécimal en Uint8Array
+                const hashBytes = new Uint8Array(fileHash.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+
+                // Créer le timestamp détaché à partir du hash
+                const detached = OpenTimestamps.DetachedTimestampFile.fromHash(
+                    new OpenTimestamps.Ops.OpSHA256(),
+                    hashBytes
+                );
+
+                // Créer l'horodatage
+                await OpenTimestamps.stamp(detached);
+
+                // Sérialiser le timestamp en bytes
+                const otsBytes = detached.serializeToBytes();
+
+                let fileName;
+                if (currentInputMode === 'text') {
+                    // Mode texte : télécharger le fichier texte et le fichier .ots
+                    const timestamp = new Date().getTime();
+                    const baseFileName = `text_${timestamp}`;
+                    fileName = `${baseFileName}.txt`;
+
+                    // Télécharger le fichier texte
+                    const textBlob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+                    downloadFile(textBlob, fileName);
+
+                    // Attendre un court instant avant le deuxième téléchargement
+                    await new Promise(resolve => setTimeout(resolve, 100));
+
+                    // Télécharger le fichier .ots
+                    const otsBlob = new Blob([otsBytes], { type: 'application/octet-stream' });
+                    downloadFile(otsBlob, `${fileName}.ots`);
+
+                    // Ajouter à la bibliothèque
+                    addToLibrary(fileName, fileHash, otsBytes, true);
+
+                    showStatus('✅ Horodatage créé avec succès! Le fichier texte et le fichier .ots ont été téléchargés et ajoutés à la bibliothèque.', 'success');
+                } else {
+                    // Mode fichier : télécharger uniquement le fichier .ots
+                    fileName = selectedFile.name;
+                    const otsBlob = new Blob([otsBytes], { type: 'application/octet-stream' });
+                    downloadFile(otsBlob, fileName + '.ots');
+
+                    // Ajouter à la bibliothèque
+                    addToLibrary(fileName, fileHash, otsBytes, false);
+
+                    showStatus('✅ Horodatage créé avec succès! Le fichier .ots a été téléchargé et ajouté à la bibliothèque.', 'success');
+                }
+
+                stampBtn.disabled = false;
+
+            } catch (error) {
+                console.error('Erreur lors de l\'horodatage:', error);
+                showStatus('❌ Erreur lors de l\'horodatage: ' + error.message, 'error');
+                stampBtn.disabled = false;
+            }
+        });
+
+        // Fonction pour télécharger un fichier
+        function downloadFile(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // ============ SECTION VÉRIFICATION ============
+
+        // Gestion de l'upload du fichier .ots
+        uploadOtsArea.addEventListener('click', () => {
+            otsFileInput.click();
+        });
+
+        otsFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                otsFile = e.target.files[0];
+                otsFileName.textContent = otsFile.name;
+                otsFileSize.textContent = formatFileSize(otsFile.size);
+                otsFileInfo.classList.add('show');
+                checkVerifyReady();
+            }
+        });
+
+        // Gestion de l'upload du fichier original
+        uploadOriginalArea.addEventListener('click', () => {
+            originalFileInput.click();
+        });
+
+        originalFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                originalFile = e.target.files[0];
+                originalFileName.textContent = originalFile.name;
+                originalFileSize.textContent = formatFileSize(originalFile.size);
+                originalFileInfo.classList.add('show');
+                checkVerifyReady();
+            }
+        });
+
+        // Vérifier si les deux fichiers sont chargés
+        function checkVerifyReady() {
+            if (otsFile && originalFile) {
+                verifyBtn.disabled = false;
+            }
+        }
+
+        // Fonction pour afficher les messages de statut (vérification)
+        function showVerifyStatus(message, type) {
+            verifyStatusMessage.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        // Bouton upgrade du fichier .ots
+        const upgradeBtn = document.createElement('button');
+        upgradeBtn.className = 'btn';
+        upgradeBtn.textContent = '🔄 Mettre à jour le timestamp';
+        upgradeBtn.style.marginTop = '10px';
+        upgradeBtn.style.display = 'none';
+        upgradeBtn.addEventListener('click', upgradeOtsFile);
+        verifyStatusMessage.parentNode.insertBefore(upgradeBtn, verifyStatusMessage.nextSibling);
+
+        // Fonction pour vérifier l'horodatage
+        verifyBtn.addEventListener('click', async () => {
+            if (!otsFile || !originalFile) return;
+
+            verifyBtn.disabled = true;
+            upgradeBtn.style.display = 'none';
+            verificationResult.classList.remove('show');
+            showVerifyStatus('<span class="loading"></span> Vérification en cours...', 'info');
+
+            try {
+                // Lire le fichier .ots
+                const otsArrayBuffer = await readFileAsArrayBuffer(otsFile);
+                const otsBytes = new Uint8Array(otsArrayBuffer);
+
+                // Lire le fichier original
+                const originalArrayBuffer = await readFileAsArrayBuffer(originalFile);
+                const originalBytes = new Uint8Array(originalArrayBuffer);
+
+                // Désérialiser le fichier .ots
+                const detachedOts = OpenTimestamps.DetachedTimestampFile.deserialize(otsBytes);
+                currentDetachedOts = detachedOts; // Sauvegarder pour upgrade
+
+                // Créer le DetachedTimestampFile du fichier original
+                const detached = OpenTimestamps.DetachedTimestampFile.fromBytes(
+                    new OpenTimestamps.Ops.OpSHA256(),
+                    originalBytes
+                );
+
+                // Vérifier le timestamp
+                const verifyResult = await OpenTimestamps.verify(detachedOts, detached);
+
+                // Afficher les résultats
+                if (verifyResult && Object.keys(verifyResult).length > 0) {
+                    displayVerificationResults(verifyResult);
+
+                    // Vérifier s'il y a une mise à jour disponible
+                    showVerifyStatus('<span class="loading"></span> Vérification des mises à jour disponibles...', 'info');
+                    const changed = await OpenTimestamps.upgrade(currentDetachedOts);
+
+                    if (changed) {
+                        showVerifyStatus('✅ Horodatage vérifié avec succès! Une mise à jour du fichier .ots est disponible.', 'success');
+                        upgradeBtn.textContent = '📥 Télécharger le fichier .ots mis à jour';
+                        upgradeBtn.style.display = 'block';
+                    } else {
+                        showVerifyStatus('✅ Horodatage vérifié avec succès! Le fichier .ots est déjà à jour.', 'success');
+                        upgradeBtn.style.display = 'none';
+                    }
+                } else {
+                    // Vérifier s'il y a une mise à jour disponible même sans vérification réussie
+                    try {
+                        const changed = await OpenTimestamps.upgrade(currentDetachedOts);
+                        if (changed) {
+                            showVerifyStatus('⏳ L\'horodatage n\'est pas encore confirmé sur la blockchain, mais une mise à jour partielle est disponible.', 'info');
+                            upgradeBtn.textContent = '📥 Télécharger le fichier .ots mis à jour';
+                            upgradeBtn.style.display = 'block';
+                        } else {
+                            showVerifyStatus('⏳ L\'horodatage n\'est pas encore confirmé sur la blockchain. Il peut prendre quelques heures pour être confirmé. Revenez plus tard pour vérifier les mises à jour.', 'info');
+                            upgradeBtn.style.display = 'none';
+                        }
+                    } catch (upgradeError) {
+                        console.error('Erreur lors de la vérification de mise à jour:', upgradeError);
+                        showVerifyStatus('⏳ L\'horodatage n\'est pas encore confirmé sur la blockchain. Il peut prendre quelques heures pour être confirmé. Revenez plus tard pour vérifier les mises à jour.', 'info');
+                        upgradeBtn.style.display = 'none';
+                    }
+                }
+
+                verifyBtn.disabled = false;
+
+            } catch (error) {
+                console.error('Erreur lors de la vérification:', error);
+                showVerifyStatus('❌ Erreur lors de la vérification: ' + error.message, 'error');
+                verifyBtn.disabled = false;
+            }
+        });
+
+        // Fonction pour lire un fichier comme ArrayBuffer
+        function readFileAsArrayBuffer(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = () => reject(reader.error);
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        // Variable globale pour stocker l'objet detached actuel
+        let currentDetachedOts = null;
+
+        // Fonction pour afficher les résultats de vérification
+        function displayVerificationResults(results) {
+            let html = '';
+
+            for (const [chain, attestations] of Object.entries(results)) {
+                // Vérifier si attestations est un array, sinon le convertir
+                const attestationList = Array.isArray(attestations) ? attestations : [attestations];
+                
+                attestationList.forEach((attestation, index) => {
+                    if (!attestation) return; // Ignorer les valeurs vides
+                    
+                    const date = new Date(attestation.timestamp * 1000);
+                    const blockExplorerUrl = `https://www.blockchain.com/btc/block-height/${attestation.height}`;
+                    
+                    html += `
+                        <div class="verification-item">
+                            <div class="verification-label">Blockchain</div>
+                            <div class="verification-value">${chain === 'bitcoin' ? 'Bitcoin' : chain}</div>
+                        </div>
+                        <div class="verification-item">
+                            <div class="verification-label">Hauteur de bloc</div>
+                            <div class="verification-value">
+                                <a href="${blockExplorerUrl}" target="_blank" style="color: #3b82f6; text-decoration: none; font-weight: 600;">
+                                    ${attestation.height || 'N/A'} 🔗
+                                </a>
+                            </div>
+                        </div>
+                        <div class="verification-item">
+                            <div class="verification-label">Date et heure</div>
+                            <div class="verification-value">${date.toLocaleString('fr-FR', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit'
+                            })}</div>
+                        </div>
+                        <div class="verification-item">
+                            <div class="verification-label">Timestamp Unix</div>
+                            <div class="verification-value">${attestation.timestamp}</div>
+                        </div>
+                    `;
+                });
+            }
+
+            verificationResult.innerHTML = html;
+            verificationResult.classList.add('show');
+        }
+
+        // Fonction pour télécharger le fichier .ots mis à jour
+        async function upgradeOtsFile() {
+            if (!currentDetachedOts) {
+                showVerifyStatus('❌ Aucun fichier .ots chargé', 'error');
+                return;
+            }
+
+            showVerifyStatus('<span class="loading"></span> Préparation du téléchargement...', 'info');
+
+            try {
+                // Sérialiser le fichier .ots mis à jour
+                const upgradedOts = currentDetachedOts.serializeToBytes();
+                const otsBlob = new Blob([upgradedOts], { type: 'application/octet-stream' });
+
+                // Générer un nouveau nom de fichier avec "_updated" pour éviter d'écraser l'original
+                const originalName = otsFile.name;
+                const newName = originalName.replace('.ots', '_updated.ots');
+
+                downloadFile(otsBlob, newName);
+
+                showVerifyStatus('✅ Le fichier .ots mis à jour a été téléchargé avec succès!', 'success');
+                upgradeBtn.style.display = 'none';
+            } catch (error) {
+                console.error('Erreur lors du téléchargement:', error);
+                showVerifyStatus('❌ Erreur lors du téléchargement: ' + error.message, 'error');
+            }
+        }
+    </script>
+
+
+</body></html>
