@@ -3,7 +3,7 @@
 Application web permettant de créer et vérifier des horodatages cryptographiques sur la blockchain Bitcoin en utilisant OpenTimeStamps.
 
 # Accès rapide
-[https://l0d0v1c.github.io/horodatage/] 
+[Accéder ici](https://l0d0v1c.github.io/horodatage/)
 
 ## 📋 Table des matières
 
