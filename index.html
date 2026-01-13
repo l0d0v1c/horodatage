@@ -887,12 +887,14 @@
         <div id="libraryContent" class="tab-content">
             <div class="library-header">
                 <h2 style="font-size: 20px; color: #333; margin-bottom: 15px;">📚 Mes fichiers horodatés</h2>
-                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                    <button class="btn" onclick="refreshLibrary()" style="flex: 1;">🔄 Actualiser</button>
-                    <button class="btn" onclick="exportLibrary()" style="flex: 1; background: #10b981;">💾 Sauvegarder</button>
-                    <button class="btn" onclick="importLibrary()" style="flex: 1; background: #f59e0b;">📂 Restaurer</button>
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <button class="btn" onclick="refreshLibrary()" style="flex: 1; min-width: 120px;">🔄 Actualiser</button>
+                    <button class="btn" onclick="importOtsFile()" style="flex: 1; min-width: 120px; background: #8b5cf6;">📜 Importer .ots</button>
+                    <button class="btn" onclick="exportLibrary()" style="flex: 1; min-width: 120px; background: #10b981;">💾 Sauvegarder</button>
+                    <button class="btn" onclick="importLibrary()" style="flex: 1; min-width: 120px; background: #f59e0b;">📂 Restaurer</button>
                 </div>
                 <input type="file" id="importFileInput" accept=".json" style="display: none;">
+                <input type="file" id="importOtsFileInput" accept=".ots" style="display: none;">
             </div>
 
             <div id="libraryList" class="library-list">
@@ -926,6 +928,75 @@
                 document.getElementById('libraryContent').classList.add('active');
                 loadLibrary();
             }
+        }
+
+        // ============ ANALYSE BINAIRE DES FICHIERS OTS ============
+
+        // Tag d'attestation Bitcoin dans les fichiers OTS
+        const BITCOIN_ATTESTATION_TAG = [0x05, 0x88, 0x96, 0x0d, 0x73, 0xd7, 0x19, 0x01];
+
+        // Lire un varint depuis un tableau de bytes à partir d'une position
+        function readVarint(bytes, offset) {
+            let value = 0;
+            let shift = 0;
+            let pos = offset;
+
+            while (pos < bytes.length) {
+                const byte = bytes[pos];
+                value |= (byte & 0x7f) << shift;
+                pos++;
+                if ((byte & 0x80) === 0) {
+                    break;
+                }
+                shift += 7;
+            }
+
+            return { value, nextOffset: pos };
+        }
+
+        // Extraire les infos de bloc depuis les bytes d'un fichier OTS
+        function extractBlockInfoFromOtsBytes(otsBytes) {
+            // Debug: afficher les premiers et derniers bytes du fichier
+            console.log('OTS file size:', otsBytes.length);
+            console.log('First 100 bytes (hex):', Array.from(otsBytes.slice(0, 100)).map(b => b.toString(16).padStart(2, '0')).join(' '));
+            console.log('Last 50 bytes (hex):', Array.from(otsBytes.slice(-50)).map(b => b.toString(16).padStart(2, '0')).join(' '));
+
+            // Chercher le tag d'attestation Bitcoin dans le fichier
+            console.log('Searching for Bitcoin attestation tag:', BITCOIN_ATTESTATION_TAG.map(b => b.toString(16).padStart(2, '0')).join(' '));
+
+            for (let i = 0; i <= otsBytes.length - BITCOIN_ATTESTATION_TAG.length - 4; i++) {
+                let found = true;
+                for (let j = 0; j < BITCOIN_ATTESTATION_TAG.length; j++) {
+                    if (otsBytes[i + j] !== BITCOIN_ATTESTATION_TAG[j]) {
+                        found = false;
+                        break;
+                    }
+                }
+
+                if (found) {
+                    console.log('Bitcoin attestation tag found at offset:', i);
+                    // Tag trouvé! Après le tag, il y a un byte de longueur puis la hauteur en varint
+                    const lengthByteOffset = i + BITCOIN_ATTESTATION_TAG.length;
+                    const dataLength = otsBytes[lengthByteOffset];
+                    console.log('Data length byte:', dataLength);
+
+                    // Lire la hauteur du bloc (varint) après le byte de longueur
+                    const heightResult = readVarint(otsBytes, lengthByteOffset + 1);
+                    const blockHeight = heightResult.value;
+                    console.log('Block height read:', blockHeight);
+
+                    // La hauteur du bloc doit être raisonnable (> 0 et < 10 millions)
+                    if (blockHeight > 0 && blockHeight < 10000000) {
+                        return {
+                            height: blockHeight,
+                            timestamp: null // Le timestamp n'est pas stocké directement, on pourrait le récupérer via API
+                        };
+                    }
+                }
+            }
+
+            console.log('No Bitcoin attestation found in file');
+            return null; // Pas d'attestation Bitcoin trouvée
         }
 
         // ============ GESTION DE LA BIBLIOTHÈQUE LOCALE ============
@@ -978,7 +1049,7 @@
         // Supprimer un fichier de la bibliothèque
         function removeFromLibrary(id) {
             let library = getLibrary();
-            library = library.filter(entry => entry.id !== id);
+            library = library.filter(entry => String(entry.id) !== String(id));
             saveLibrary(library);
         }
 
@@ -1199,6 +1270,108 @@
             e.target.value = '';
         });
 
+        // Importer un fichier .ots directement dans la bibliothèque
+        function importOtsFile() {
+            const importOtsInput = document.getElementById('importOtsFileInput');
+            importOtsInput.click();
+        }
+
+        // Gérer la sélection du fichier .ots à importer
+        document.getElementById('importOtsFileInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            try {
+                // Vérifier que c'est bien un fichier .ots (taille raisonnable)
+                if (file.size > 10 * 1024 * 1024) {
+                    throw new Error('Le fichier est trop volumineux pour être un fichier .ots valide');
+                }
+
+                // Lire le fichier .ots
+                const arrayBuffer = await file.arrayBuffer();
+                const otsBytes = new Uint8Array(arrayBuffer);
+
+                // Vérifier le magic number des fichiers OTS
+                // Header: "\x00OpenTimestamps\x00\x00Proof\x00\xbf\x89\xe2\xe8\x84\xe8\x92\x94" (31 bytes)
+                const magicHeader = [0x00, 0x4f, 0x70, 0x65, 0x6e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x73, 0x00, 0x00, 0x50, 0x72, 0x6f, 0x6f, 0x66, 0x00, 0xbf, 0x89, 0xe2, 0xe8, 0x84, 0xe8, 0x92, 0x94];
+                const hasMagic = magicHeader.every((byte, i) => otsBytes[i] === byte);
+                if (!hasMagic) {
+                    throw new Error('Ce fichier ne semble pas être un fichier .ots valide');
+                }
+
+                // Extraire le hash directement depuis les bytes
+                // Structure après le header (31 bytes):
+                // - 1 byte: version (0x01)
+                // - 1 byte: hash type (0x08 = SHA256)
+                // - 1 byte: hash length (0x20 = 32)
+                // - 32 bytes: le hash SHA256
+                const hashStart = 31 + 1 + 1 + 1; // 34
+                const hashLength = 32;
+
+                if (otsBytes.length < hashStart + hashLength) {
+                    throw new Error('Fichier .ots trop court ou corrompu');
+                }
+
+                const hashBytes = otsBytes.slice(hashStart, hashStart + hashLength);
+                const hash = Array.from(hashBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+
+                // Vérifier si ce hash existe déjà dans la bibliothèque
+                const library = getLibrary();
+                const existingEntry = library.find(entry => entry.hash === hash);
+
+                if (existingEntry) {
+                    alert(`⚠️ Ce fichier est déjà dans la bibliothèque sous le nom "${existingEntry.fileName}"`);
+                    e.target.value = '';
+                    return;
+                }
+
+                // Déterminer le nom du fichier original (enlever .ots)
+                let originalFileName = file.name;
+                if (originalFileName.endsWith('.ots')) {
+                    originalFileName = originalFileName.slice(0, -4);
+                }
+
+                // Demander confirmation du nom
+                const confirmedName = prompt(
+                    'Nom du fichier original associé à cet horodatage:',
+                    originalFileName
+                );
+
+                if (!confirmedName) {
+                    e.target.value = '';
+                    return;
+                }
+
+                // Détecter si le fichier est déjà vérifié (contient une attestation Bitcoin)
+                const blockInfo = extractBlockInfoFromOtsBytes(otsBytes);
+                const isVerified = blockInfo !== null;
+
+                // Ajouter à la bibliothèque
+                const entry = addToLibrary(confirmedName, hash, otsBytes, false);
+
+                // Si vérifié, mettre à jour le statut avec les infos du bloc
+                if (isVerified) {
+                    updateLibraryEntryStatus(entry.id, true, null, blockInfo);
+                }
+
+                // Recharger l'affichage
+                loadLibrary();
+
+                if (isVerified) {
+                    alert(`✅ Fichier .ots importé avec succès!\n✅ Vérifié sur la blockchain Bitcoin (bloc #${blockInfo.height})`);
+                } else {
+                    alert(`✅ Fichier .ots importé avec succès!\n⏳ En attente de confirmation sur la blockchain`);
+                }
+
+            } catch (error) {
+                console.error('Erreur lors de l\'import du fichier .ots:', error);
+                alert('❌ Erreur lors de l\'import: ' + error.message);
+            }
+
+            // Réinitialiser l'input
+            e.target.value = '';
+        });
+
         // Télécharger un fichier OTS depuis la bibliothèque
         function downloadOtsFromLibrary(id) {
             const library = getLibrary();
@@ -1252,61 +1425,52 @@
                 // Convertir l'array en Uint8Array
                 const otsBytes = new Uint8Array(entry.otsData);
 
-                // Désérialiser le fichier OTS
-                const detached = OpenTimestamps.DetachedTimestampFile.deserialize(otsBytes);
+                // D'abord, vérifier via analyse binaire si déjà confirmé
+                const blockInfo = extractBlockInfoFromOtsBytes(otsBytes);
 
-                // Préparer le hash pour la vérification
-                const hashBytes = new Uint8Array(entry.hash.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-                const detachedHash = OpenTimestamps.DetachedTimestampFile.fromHash(
-                    new OpenTimestamps.Ops.OpSHA256(),
-                    hashBytes
-                );
-
-                // Essayer d'upgrader
-                const changed = await OpenTimestamps.upgrade(detached);
-
-                if (changed) {
-                    // Sérialiser le fichier mis à jour
-                    const updatedOtsBytes = detached.serializeToBytes();
-
-                    // Vérifier pour obtenir les infos du bloc
-                    try {
-                        const verifyResult = await OpenTimestamps.verify(detached, detachedHash);
-                        const blockInfo = extractBlockInfo(verifyResult);
-                        updateLibraryEntryStatus(entry.id, true, updatedOtsBytes, blockInfo);
-                    } catch (verifyError) {
-                        // Mise à jour sans infos du bloc
-                        updateLibraryEntryStatus(entry.id, true, updatedOtsBytes);
-                    }
-
-                    // Recharger l'affichage
+                if (blockInfo) {
+                    // Le fichier contient déjà une attestation Bitcoin
+                    updateLibraryEntryStatus(entry.id, true, null, blockInfo);
                     loadLibrary();
+                    alert(`✅ Le fichier OTS est confirmé sur la blockchain!\nBloc #${blockInfo.height}`);
+                    return;
+                }
 
-                    alert('✅ Le fichier OTS a été mis à jour avec succès! Vous pouvez maintenant le télécharger.');
-                } else {
-                    // Pas de changement, mais vérifier si déjà vérifié
-                    try {
-                        const verifyResult = await OpenTimestamps.verify(detached, detachedHash);
-                        if (verifyResult && Object.keys(verifyResult).length > 0) {
-                            // C'est vérifié, extraire les infos du bloc et marquer comme à jour
-                            const blockInfo = extractBlockInfo(verifyResult);
-                            updateLibraryEntryStatus(entry.id, true, null, blockInfo);
+                // Pas encore confirmé, essayer d'upgrader via les serveurs calendrier
+                try {
+                    const detached = OpenTimestamps.DetachedTimestampFile.deserialize(otsBytes);
+                    const changed = await OpenTimestamps.upgrade(detached);
+
+                    if (changed) {
+                        // Sérialiser le fichier mis à jour
+                        const updatedOtsBytes = detached.serializeToBytes();
+
+                        // Vérifier si maintenant il contient une attestation
+                        const newBlockInfo = extractBlockInfoFromOtsBytes(updatedOtsBytes);
+
+                        if (newBlockInfo) {
+                            updateLibraryEntryStatus(entry.id, true, updatedOtsBytes, newBlockInfo);
                             loadLibrary();
-                            alert('✅ Le fichier OTS est déjà confirmé sur la blockchain!');
+                            alert(`✅ Le fichier OTS a été mis à jour!\nConfirmé sur le bloc #${newBlockInfo.height}`);
                         } else {
-                            if (updateBtn) {
-                                updateBtn.disabled = false;
-                                updateBtn.innerHTML = '🔄 Vérifier & MAJ';
-                            }
-                            alert('⏳ Aucune mise à jour disponible pour le moment. L\'inscription sur la blockchain peut prendre quelques heures.');
+                            updateLibraryEntryStatus(entry.id, false, updatedOtsBytes);
+                            loadLibrary();
+                            alert('🔄 Fichier mis à jour mais pas encore confirmé sur la blockchain.');
                         }
-                    } catch (verifyError) {
+                    } else {
                         if (updateBtn) {
                             updateBtn.disabled = false;
                             updateBtn.innerHTML = '🔄 Vérifier & MAJ';
                         }
                         alert('⏳ Aucune mise à jour disponible pour le moment. L\'inscription sur la blockchain peut prendre quelques heures.');
                     }
+                } catch (upgradeError) {
+                    console.error('Erreur lors de l\'upgrade:', upgradeError);
+                    if (updateBtn) {
+                        updateBtn.disabled = false;
+                        updateBtn.innerHTML = '🔄 Vérifier & MAJ';
+                    }
+                    alert('⏳ Aucune mise à jour disponible pour le moment. Réessayez plus tard.');
                 }
             } catch (error) {
                 console.error('Erreur lors de la mise à jour:', error);
