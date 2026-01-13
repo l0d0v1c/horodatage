@@ -322,6 +322,11 @@
             border-color: #3b82f6;
         }
 
+        .upload-small.dragover {
+            background: #eff6ff;
+            border-color: #3b82f6;
+        }
+
         .upload-small .upload-icon {
             font-size: 32px;
             margin-bottom: 5px;
@@ -460,6 +465,33 @@
             border-radius: 5px;
             margin: 10px 0;
             word-break: break-all;
+        }
+
+        .library-item-block {
+            font-size: 14px;
+            color: #333;
+            background: #d1fae5;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #10b981;
+        }
+
+        .library-item-block a {
+            color: #3b82f6;
+            text-decoration: none;
+            font-weight: 600;
+            font-family: monospace;
+        }
+
+        .library-item-block a:hover {
+            text-decoration: underline;
+        }
+
+        .library-item-block small {
+            color: #666;
+            display: block;
+            margin-top: 5px;
         }
 
         .library-item-actions {
@@ -824,7 +856,7 @@
         <div id="verifyContent" class="tab-content">
             <div class="upload-small" id="uploadOtsArea">
                 <div class="upload-icon">📜</div>
-                <div class="upload-text">Cliquez pour sélectionner le fichier .ots</div>
+                <div class="upload-text">Cliquez ou glissez-déposez le fichier .ots</div>
             </div>
             <input type="file" id="otsFileInput" accept=".ots" style="display: none;">
 
@@ -835,7 +867,7 @@
 
             <div class="upload-small" id="uploadOriginalArea">
                 <div class="upload-icon">📄</div>
-                <div class="upload-text">Cliquez pour sélectionner le fichier original</div>
+                <div class="upload-text">Cliquez ou glissez-déposez le fichier original</div>
             </div>
             <input type="file" id="originalFileInput" accept="*/*" style="display: none;">
 
@@ -951,7 +983,7 @@
         }
 
         // Mettre à jour le statut d'un fichier
-        function updateLibraryEntryStatus(id, isUpToDate, updatedOtsData = null) {
+        function updateLibraryEntryStatus(id, isUpToDate, updatedOtsData = null, blockInfo = null) {
             const library = getLibrary();
             const entry = library.find(e => e.id === id);
 
@@ -960,6 +992,10 @@
                 if (updatedOtsData) {
                     entry.otsData = Array.from(updatedOtsData);
                     entry.lastUpdated = new Date().toISOString();
+                }
+                if (blockInfo) {
+                    entry.blockHeight = blockInfo.height;
+                    entry.blockTimestamp = blockInfo.timestamp;
                 }
                 saveLibrary(library);
             }
@@ -999,6 +1035,30 @@
                     ? `<button class="library-btn update" onclick="checkAndUpdateOts('${entry.id}')">🔄 Vérifier & MAJ</button>`
                     : '';
 
+                // Afficher le lien vers le bloc si disponible
+                let blockInfo = '';
+                if (entry.blockHeight) {
+                    const blockDate = entry.blockTimestamp
+                        ? new Date(entry.blockTimestamp * 1000).toLocaleDateString('fr-FR', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        })
+                        : '';
+                    const blockExplorerUrl = `https://www.blockchain.com/btc/block-height/${entry.blockHeight}`;
+                    blockInfo = `
+                        <div class="library-item-block">
+                            <strong>⛓️ Bloc Bitcoin:</strong>
+                            <a href="${blockExplorerUrl}" target="_blank" rel="noopener noreferrer">
+                                #${entry.blockHeight} 🔗
+                            </a>
+                            ${blockDate ? `<br><small>Horodaté le ${blockDate}</small>` : ''}
+                        </div>
+                    `;
+                }
+
                 return `
                     <div class="library-item ${entry.isUpToDate ? '' : 'outdated'}" id="library-item-${entry.id}">
                         <div class="library-item-header">
@@ -1014,6 +1074,7 @@
                             <strong>Hash SHA-256:</strong><br>
                             ${entry.hash}
                         </div>
+                        ${blockInfo}
                         <div class="library-item-actions">
                             <button class="library-btn download" onclick="downloadOtsFromLibrary('${entry.id}')">
                                 📥 Télécharger .ots
@@ -1155,6 +1216,20 @@
             downloadFile(otsBlob, entry.fileName + '.ots');
         }
 
+        // Extraire les informations du bloc depuis le résultat de vérification
+        function extractBlockInfo(verifyResult) {
+            if (!verifyResult) return null;
+            for (const [chain, attestation] of Object.entries(verifyResult)) {
+                if (attestation && attestation.height) {
+                    return {
+                        height: attestation.height,
+                        timestamp: attestation.timestamp
+                    };
+                }
+            }
+            return null;
+        }
+
         // Vérifier et mettre à jour un fichier OTS
         async function checkAndUpdateOts(id) {
             const library = getLibrary();
@@ -1180,6 +1255,13 @@
                 // Désérialiser le fichier OTS
                 const detached = OpenTimestamps.DetachedTimestampFile.deserialize(otsBytes);
 
+                // Préparer le hash pour la vérification
+                const hashBytes = new Uint8Array(entry.hash.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+                const detachedHash = OpenTimestamps.DetachedTimestampFile.fromHash(
+                    new OpenTimestamps.Ops.OpSHA256(),
+                    hashBytes
+                );
+
                 // Essayer d'upgrader
                 const changed = await OpenTimestamps.upgrade(detached);
 
@@ -1187,8 +1269,15 @@
                     // Sérialiser le fichier mis à jour
                     const updatedOtsBytes = detached.serializeToBytes();
 
-                    // Mettre à jour dans la bibliothèque
-                    updateLibraryEntryStatus(entry.id, true, updatedOtsBytes);
+                    // Vérifier pour obtenir les infos du bloc
+                    try {
+                        const verifyResult = await OpenTimestamps.verify(detached, detachedHash);
+                        const blockInfo = extractBlockInfo(verifyResult);
+                        updateLibraryEntryStatus(entry.id, true, updatedOtsBytes, blockInfo);
+                    } catch (verifyError) {
+                        // Mise à jour sans infos du bloc
+                        updateLibraryEntryStatus(entry.id, true, updatedOtsBytes);
+                    }
 
                     // Recharger l'affichage
                     loadLibrary();
@@ -1196,17 +1285,12 @@
                     alert('✅ Le fichier OTS a été mis à jour avec succès! Vous pouvez maintenant le télécharger.');
                 } else {
                     // Pas de changement, mais vérifier si déjà vérifié
-                    const hashBytes = new Uint8Array(entry.hash.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-                    const detachedHash = OpenTimestamps.DetachedTimestampFile.fromHash(
-                        new OpenTimestamps.Ops.OpSHA256(),
-                        hashBytes
-                    );
-
                     try {
                         const verifyResult = await OpenTimestamps.verify(detached, detachedHash);
                         if (verifyResult && Object.keys(verifyResult).length > 0) {
-                            // C'est vérifié, marquer comme à jour
-                            updateLibraryEntryStatus(entry.id, true);
+                            // C'est vérifié, extraire les infos du bloc et marquer comme à jour
+                            const blockInfo = extractBlockInfo(verifyResult);
+                            updateLibraryEntryStatus(entry.id, true, null, blockInfo);
                             loadLibrary();
                             alert('✅ Le fichier OTS est déjà confirmé sur la blockchain!');
                         } else {
@@ -1545,6 +1629,29 @@
             otsFileInput.click();
         });
 
+        // Drag & drop pour le fichier .ots
+        uploadOtsArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadOtsArea.classList.add('dragover');
+        });
+
+        uploadOtsArea.addEventListener('dragleave', () => {
+            uploadOtsArea.classList.remove('dragover');
+        });
+
+        uploadOtsArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadOtsArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                otsFile = files[0];
+                otsFileName.textContent = otsFile.name;
+                otsFileSize.textContent = formatFileSize(otsFile.size);
+                otsFileInfo.classList.add('show');
+                checkVerifyReady();
+            }
+        });
+
         otsFileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
                 otsFile = e.target.files[0];
@@ -1558,6 +1665,29 @@
         // Gestion de l'upload du fichier original
         uploadOriginalArea.addEventListener('click', () => {
             originalFileInput.click();
+        });
+
+        // Drag & drop pour le fichier original
+        uploadOriginalArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadOriginalArea.classList.add('dragover');
+        });
+
+        uploadOriginalArea.addEventListener('dragleave', () => {
+            uploadOriginalArea.classList.remove('dragover');
+        });
+
+        uploadOriginalArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadOriginalArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                originalFile = files[0];
+                originalFileName.textContent = originalFile.name;
+                originalFileSize.textContent = formatFileSize(originalFile.size);
+                originalFileInfo.classList.add('show');
+                checkVerifyReady();
+            }
         });
 
         originalFileInput.addEventListener('change', (e) => {
